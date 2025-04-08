@@ -1,5 +1,5 @@
+#include "Functions.hpp"
 #include "Session.hpp"
-
 
 void Session::_async_connect()
 {
@@ -31,7 +31,7 @@ void Session::_async_read()
 		if (ec == error::eof) {
 			_connect_repeat();
 		}
-		else if (ec == boost::asio::error::connection_reset) {
+		else if (ec == error::connection_reset) {
 			std::cerr << "Сервер перестал отвечать. Переподключение...\n";
 			socket.close();
 			_async_connect();
@@ -53,15 +53,24 @@ void Session::_read_buf()
 	std::string answer;
 	std::istream istream(&buf);
 	std::getline(istream, answer, '\f');
-	int x = std::stoi(answer);
+	int x;
 
-	switch (x)
-	{
-	case 1: { _write_command(); break; }
-	default:
-		std::cerr << "Ошибка: не удалось распознать ответ, полученный с сервера.\nПереподключение...\n";
-		socket.close();
-		_async_connect();
+	try {
+		x = std::stoi(answer);
+	}
+	catch (std::exception ex) {
+		std::cerr << "Ошибка распознавания команды сервера: " << ex.what() << std::endl;
+		_write_command();
+		return;
+	}
+
+	auto pair = commands.find(x);
+	if (pair == commands.end()) {
+		std::cerr << "Ошибка: команда с сервера не распознана.\n";
+		_write_command();
+	}
+	else {
+		pair->second(std::string(" "));
 	}
 }
 
@@ -84,12 +93,20 @@ void Session::_write_command()
 	std::cout << "Введите команду:  ";
 	std::string command;
 	std::getline(std::cin, command);
-	socket.send(buffer(command));
+	command += '\f';
 	_async_read();
+	socket.send(buffer(command.data(), command.size()));
+}
+
+void Session::_commands_init()
+{
+	commands[(int)Com::command_not_found] = Funcs->command_not_found;
+	commands[(int)Com::unlock_write_command] = Funcs->command_not_found;
 }
 
 Session::Session(ip::tcp::socket& socket, const unsigned int port, const std::string server_ip)
-	: socket{socket}, port{port}, server_ip{server_ip}
+	: socket{socket}, port{port}, server_ip{server_ip}, Funcs{new Functions(this)}
 {
+	_commands_init();
 	_async_connect();
 }
