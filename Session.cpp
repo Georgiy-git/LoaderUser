@@ -55,8 +55,11 @@ void Session::_read_buf()
 	std::getline(istream, answer, '\f');
 	int x;
 
+	std::string sub = answer.substr(0, answer.find('&'));
+	std::string line = answer.substr(answer.find('&')+1);
+
 	try {
-		x = std::stoi(answer);
+		x = std::stoi(sub);
 	}
 	catch (std::exception ex) {
 		std::cerr << "Ошибка распознавания команды сервера: " << ex.what() << std::endl;
@@ -66,11 +69,11 @@ void Session::_read_buf()
 
 	auto pair = commands.find(x);
 	if (pair == commands.end()) {
-		std::cerr << "Ошибка: команда с сервера не распознана.\n";
+		std::cerr << "Ошибка: полученная с сервера команда не распознана.\n";
 		_write_command();
 	}
 	else {
-		pair->second(std::string(" "));
+		pair->second(line);
 	}
 }
 
@@ -93,15 +96,28 @@ void Session::_write_command()
 	std::cout << "Введите команду:  ";
 	std::string command;
 	std::getline(std::cin, command);
+
+	if (command.starts_with("/exit") || command.starts_with("exit")) {
+		std::cout << "Соединение с сервером закрыто.\n";
+		socket.close();
+		exit(0);
+	}
+
 	command += '\f';
-	_async_read();
-	socket.send(buffer(command.data(), command.size()));
+
+	try {
+		_async_read();
+		socket.send(buffer(command.data(), command.size()));
+	}
+	catch (...) {}
 }
 
 void Session::_commands_init()
 {
 	commands[(int)Com::command_not_found] = Funcs->command_not_found;
-	commands[(int)Com::unlock_write_command] = Funcs->command_not_found;
+	commands[(int)Com::null] = Funcs->null;
+	commands[(int)Com::message] = Funcs->message;
+	commands[(int)Com::files_on_server] = Funcs->files_on_server;
 }
 
 Session::Session(ip::tcp::socket& socket, const unsigned int port, const std::string server_ip)
