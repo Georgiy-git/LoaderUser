@@ -26,6 +26,7 @@ private:
 	streambuf buf;
 	std::unordered_map<int, std::function<void(std::string)>> commands;
 	Functions* Funcs = nullptr;
+	std::istream istream;
 
 	void _async_connect();
 	void _async_read();

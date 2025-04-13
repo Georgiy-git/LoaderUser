@@ -13,6 +13,7 @@ public:
 	static void command_not_found(std::string);
 	static void message(std::string);
 	static void files_on_server(std::string);
+	static void load_file(std::string);
 
 private:
 	static inline Session* obj;

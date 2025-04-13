@@ -50,30 +50,20 @@ void Session::_async_read()
 
 void Session::_read_buf()
 {
-	std::string answer;
-	std::istream istream(&buf);
-	std::getline(istream, answer, '\f');
-	int x;
+	int num_command;
+	std::string command;
 
-	std::string sub = answer.substr(0, answer.find('&'));
-	std::string line = answer.substr(answer.find('&')+1);
+	istream >> num_command;
+	istream.get();
+	std::getline(istream, command, '\f');
 
-	try {
-		x = std::stoi(sub);
-	}
-	catch (std::exception ex) {
-		std::cerr << "Ошибка распознавания команды сервера: " << ex.what() << std::endl;
-		_write_command();
-		return;
-	}
-
-	auto pair = commands.find(x);
+	auto pair = commands.find(num_command);
 	if (pair == commands.end()) {
 		std::cerr << "Ошибка: полученная с сервера команда не распознана.\n";
 		_write_command();
 	}
 	else {
-		pair->second(line);
+		pair->second(command);
 	}
 }
 
@@ -118,10 +108,11 @@ void Session::_commands_init()
 	commands[(int)Com::null] = Funcs->null;
 	commands[(int)Com::message] = Funcs->message;
 	commands[(int)Com::files_on_server] = Funcs->files_on_server;
+	commands[(int)Com::load_file] = Funcs->load_file;
 }
 
 Session::Session(ip::tcp::socket& socket, const unsigned int port, const std::string server_ip)
-	: socket{socket}, port{port}, server_ip{server_ip}, Funcs{new Functions(this)}
+	: socket{socket}, port{port}, server_ip{server_ip}, Funcs{new Functions(this)}, istream(&buf)
 {
 	_commands_init();
 	_async_connect();
