@@ -4,6 +4,7 @@
 #include <fstream>
 #include <chrono>
 #include <boost/asio.hpp>
+#include <chrono>
 
 using namespace boost::asio;
 
@@ -66,16 +67,21 @@ void Functions::load_file(std::string line)
 	}
 
 	boost::system::error_code ec;
+	size_t sum = quantity;
+	std::cout << "Загрузка:   0%";
+	auto start = std::chrono::steady_clock::now();
 
 	while (quantity > 0) {
-		size_t rd = read(obj->socket, obj->buf, transfer_at_least(20), ec);
+		size_t rd = read(obj->socket, obj->buf, transfer_at_least(1), ec);
 		if (ec) {
-			std::cerr << "Произошла ошибка при загрузке.\n";
+			std::cerr << "\nПроизошла ошибка при загрузке.\n";
 			obj->_write_command();
 			return;
 		}
 
 		quantity -= rd;
+		std::cout << "\b\b\b\b" << std::setw(3) << std::right <<
+			(sum - quantity) / (sum / 100) << "%";
 
 		file << &obj->buf;
 		if (file.fail()) {
@@ -84,6 +90,10 @@ void Functions::load_file(std::string line)
 			return;
 		}
 	}
+	std::cout << "\rЗагрузка: 100%\n";
+	auto end = std::chrono::steady_clock::now();
+	std::cout << "Загрузка заняла " << std::setprecision(2) << std::fixed <<
+		std::chrono::duration<double>(end - start) << std::endl;
 
 	file.close();
 	obj->_write_command();
